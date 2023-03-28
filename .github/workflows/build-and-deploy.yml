@@ -1,0 +1,46 @@
+name: Publish to GCR
+
+on:
+  push:
+    branches:
+      - staging
+      - production
+env:
+  GCR_PROJECT_ID: livad-311922
+  GCR_REPOSITORY_URL: eu.gcr.io
+  GCR_IMAGE_NAME: livad-admin-api
+  GCR_IMAGE_NAME_TEST: livad-admin-api-test
+  GCR_IMAGE_TAG: ${{ github.sha }}
+  
+jobs:
+  Deploy:
+    runs-on: ubuntu-latest 
+    permissions: 
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v1 
+
+      - name: Login to GCR
+        uses: google-github-actions/setup-gcloud@v0.3.0 
+        with:
+          service_account_key: ${{ secrets.GCLOUD_SA_KEY }} 
+          project_id: ${{ env.GCR_PROJECT_ID }} 
+          export_default_credentials: true
+
+      - if: github.ref == 'refs/heads/master'   
+        name: Build Docker Image
+        id: build-image-staging
+        run: docker build -t $GCR_URL/$GCR_PROJECT_ID/$GCR_IMAGE_NAME:GCR_IMAGE_TAG . 
+        
+      - name: Configure Docker Client
+        run:  |-
+          gcloud auth configure-docker --quiet 
+
+      - if: github.ref == 'refs/heads/master'  
+        name: Push Docker Image to Container Registry GCR
+        run: |-
+          docker push $GCR_URL/$GCR_PROJECT_ID/$GCR_IMAGE_NAME:GCR_IMAGE_TAG 
+          
+
