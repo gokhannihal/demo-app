@@ -5,6 +5,7 @@ on:
     branches:
       - staging
       - production
+      - master
 env:
   GCR_PROJECT_ID: livad-311922
   GCR_REPOSITORY_URL: eu.gcr.io
