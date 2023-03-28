@@ -42,6 +42,6 @@ jobs:
       - if: github.ref == 'refs/heads/master'  
         name: Push Docker Image to Container Registry GCR
         run: |-
-          docker push $GCR_URL/$GCR_PROJECT_ID/$GCR_IMAGE_NAME:GCR_IMAGE_TAG 
+          docker push $GCR_URL/$GCR_PROJECT_ID/$GCR_IMAGE_NAME:$GCR_IMAGE_TAG 
           
 
