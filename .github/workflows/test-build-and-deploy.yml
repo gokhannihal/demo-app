@@ -75,10 +75,10 @@ jobs:
         if: ${{ github.event.inputs.version == '' }} 
         run: |-
           helm upgrade -i -n $GC_KE_ENV $GC_REPOSITORY -f ./helm-charts/$GC_KE_ENV/$APP_NAME.yaml --set deploy.tag=$GC_IMAGE_TAG ./helm-charts --wait 
-          kubectl rollout status deployment/$APP_NAME-deployment
+          kubectl rollout status deployment/$APP_NAME-deployment -n $GC_KE_ENV
 
       - name: Rollback
         if: ${{ github.event.inputs.version != '' }} 
         run: |-
           helm upgrade -i -n $GC_KE_ENV $GC_REPOSITORY -f ./helm-charts/$GC_KE_ENV/$APP_NAME.yaml --set deploy.tag=v1.0.{{ github.event.inputs.version }} ./helm-charts --wait 
-          kubectl rollout status deployment/$APP_NAME-deployment
+          kubectl rollout status deployment/$APP_NAME-deployment -n $GC_KE_ENV
