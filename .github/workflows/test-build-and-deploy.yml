@@ -3,7 +3,7 @@ name: Test Build And Deploy GKE
 on:
   workflow_dispatch:
     inputs:
-      trigger:
+      version:
         description: version
         default: ""
         required: true
