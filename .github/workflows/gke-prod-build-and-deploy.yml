@@ -65,11 +65,11 @@ jobs:
         uses: 'google-github-actions/get-secretmanager-secrets@v1'
         with:
           secrets: |-
-            token:${{ env.GC_PROJECT_ID }}/${{ env.APP_NAME }}
+            app_env:${{ env.GC_PROJECT_ID }}/${{ env.APP_NAME }}
 
       - name: Helm Deploy And Status
         working-directory: ./devops
         run: |-
-          echo '${{ steps.secrets.outputs.token }}'
-          helm upgrade -i -n $GC_KE_ENV $GC_REPOSITORY -f ./helm-charts/$GC_KE_ENV/$APP_NAME.yaml --set deploy.tag=$GC_IMAGE_TAG ./helm-charts --wait 
+          echo '${{ steps.secrets.outputs.app_env }}'
+          helm upgrade -i -n $GC_KE_ENV $GC_REPOSITORY -f ./helm-charts/$GC_KE_ENV/$APP_NAME.yaml --set configValues='${{ steps.secrets.outputs.app_env }}'  --set deploy.tag=$GC_IMAGE_TAG ./helm-charts --wait 
           kubectl rollout status deployment/$APP_NAME-deployment -n $GC_KE_ENV
