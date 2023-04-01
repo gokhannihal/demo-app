@@ -1,0 +1,83 @@
+name: Publish to GCR
+
+on:
+  workflow_dispatch:
+    inputs:
+      trigger:
+        description: version
+        default: ""
+        required: true
+  push:
+    branches:
+      - devops-prod
+env:
+  GC_PROJECT_ID: livad-311922
+  GC_ZONE: europe-west3
+  GC_REGISTRY: eu.gcr.io
+  GC_REPOSITORY: livad-admin-api
+  GC_IMAGE_TAG: v1.0.{{ github.run_number }}
+  GC_KE_CLUSTER: livad-de-prod-kubernetes-cluster
+  GC_KE_ENV: prod
+  APP_NAME: livad-admin-api
+  
+jobs:
+  Build:
+    if: ${{ github.event.inputs.version == '' }} 
+    runs-on: ubuntu-latest 
+    permissions: 
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v2
+          
+      - name: Login to GCR
+        uses: google-github-actions/setup-gcloud@v0.3.0 
+        with:
+          service_account_key: ${{ secrets.GCLOUD_SA_KEY }} 
+          project_id: ${{ env.GC_PROJECT_ID }} 
+          export_default_credentials: true
+
+      - name: Configure Docker Client
+        run:  |-
+          gcloud auth configure-docker --quiet 
+
+      - name: Build Docker Image And Push GCR
+        run: |- 
+          docker build -t $GC_REGISTRY/$GC_PROJECT_ID/$GC_REPOSITORY:$GC_IMAGE_TAG . 
+          docker push $GC_REGISTRY/$GC_PROJECT_ID/$GC_REPOSITORY:$GC_IMAGE_TAG  
+          echo "::set-output name=image::$GC_REGISTRY/$GC_PROJECT_ID/$GC_REPOSITORY:$GC_IMAGE_TAG"  
+
+  Deploy:
+    runs-on: ubuntu-latest 
+    permissions: 
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout DevOps
+        uses: actions/checkout@v2
+        with:
+          repository: gokhannihal/demo-devops
+
+      - name: Install Helm
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+
+      - name: Configure Kubernetes Client
+        uses: google-github-actions/get-gke-credentials@fb08709ba27618c31c09e014e1d8364b02e5042e
+        with:
+          cluster_name: ${{ env.GC_KE_CLUSTER }}
+          location: ${{ env.GC_ZONE }}
+          credentials: ${{ secrets.GCLOUD_SA_KEY }}  
+      
+      - name: Helm Deploy And Status
+        if: ${{ github.event.inputs.version == '' }} 
+        run: |-
+          helm upgrade -i -n $GC_KE_ENV $GC_REPOSITORY -f ./helm-charts/$GC_KE_ENV/$APP_NAME.yaml --set deploy.tag=$GC_IMAGE_TAG ./helm-charts --wait 
+          kubectl rollout status deployment/$APP_NAME-deployment
+
+      - name: Rollback
+        if: ${{ github.event.inputs.version != '' }} 
+        run: |-
+          helm upgrade -i -n $GC_KE_ENV $GC_REPOSITORY -f ./helm-charts/$GC_KE_ENV/$APP_NAME.yaml --set deploy.tag=v1.0.{{ github.event.inputs.version }} ./helm-charts --wait 
+          kubectl rollout status deployment/$APP_NAME-deployment
