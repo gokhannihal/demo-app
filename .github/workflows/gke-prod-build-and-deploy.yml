@@ -1,28 +1,21 @@
-name: Test Build And Deploy GKE
+name: GKE Prod Build And Deploy 
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: version
-        default: ""
-        required: true
   push:
     branches:
-      - devops-test
+      - devops-prod
 env:
   GC_PROJECT_ID: livad-311922
   GC_ZONE: europe-west3
   GC_REGISTRY: eu.gcr.io
-  GC_REPOSITORY: livad-admin-api-test
+  GC_REPOSITORY: livad-admin-api
   GC_IMAGE_TAG: v1.0.${{ github.run_number }}
-  GC_KE_CLUSTER: livad-de-test-kubernetes-cluster
-  GC_KE_ENV: test
+  GC_KE_CLUSTER: livad-de-prod-kubernetes-cluster
+  GC_KE_ENV: prod
   APP_NAME: livad-admin-api
   
 jobs:
   Build:
-    if: ${{ github.event.inputs.version == '' }} 
     runs-on: ubuntu-latest 
     permissions: 
       contents: read
@@ -30,8 +23,14 @@ jobs:
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v2
-          
-      - name: Login to GCR
+
+      - name: Checkout DevOps
+        uses: actions/checkout@v2
+        with:
+          repository: gokhannihal/demo-devops
+          path: devops
+           
+      - name: Login to GKE
         uses: google-github-actions/setup-gcloud@v0.3.0 
         with:
           service_account_key: ${{ secrets.GCLOUD_SA_KEY }} 
@@ -43,22 +42,12 @@ jobs:
           gcloud auth configure-docker --quiet 
 
       - name: Build Docker Image And Push GCR
+        env:
+          NPM_USER: ${{ secrets.NPM_USER }}
         run: |- 
-          docker build -t $GC_REGISTRY/$GC_PROJECT_ID/$GC_REPOSITORY:$GC_IMAGE_TAG . 
+          docker build --build-arg BUILD_ENV=production --build-arg NPM_USER=$NPM_USER -t $GC_REGISTRY/$GC_PROJECT_ID/$GC_REPOSITORY:$GC_IMAGE_TAG . 
           docker push $GC_REGISTRY/$GC_PROJECT_ID/$GC_REPOSITORY:$GC_IMAGE_TAG  
           echo "::set-output name=image::$GC_REGISTRY/$GC_PROJECT_ID/$GC_REPOSITORY:$GC_IMAGE_TAG"  
-
-  Deploy:
-    runs-on: ubuntu-latest 
-    needs: Build
-    permissions: 
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout DevOps
-        uses: actions/checkout@v2
-        with:
-          repository: gokhannihal/demo-devops
 
       - name: Install Helm
         run: |
@@ -70,15 +59,17 @@ jobs:
           cluster_name: ${{ env.GC_KE_CLUSTER }}
           location: ${{ env.GC_ZONE }}
           credentials: ${{ secrets.GCLOUD_SA_KEY }}  
-      
-      - name: Helm Deploy And Status
-        if: ${{ github.event.inputs.version == '' }} 
-        run: |-
-          helm upgrade -i -n $GC_KE_ENV $GC_REPOSITORY -f ./helm-charts/$GC_KE_ENV/$APP_NAME.yaml --set deploy.tag=$GC_IMAGE_TAG ./helm-charts --wait 
-          kubectl rollout status deployment/$APP_NAME-deployment -n $GC_KE_ENV
 
-      - name: Rollback
-        if: ${{ github.event.inputs.version != '' }} 
+      - name: Get Secrets
+        id: 'secrets'
+        uses: 'google-github-actions/get-secretmanager-secrets@v1'
+        with:
+          secrets: |-
+            token:$GC_PROJECT_ID/$livad-admin-api
+
+      - name: Helm Deploy And Status
+        working-directory: ./devops
         run: |-
-          helm upgrade -i -n $GC_KE_ENV $GC_REPOSITORY -f ./helm-charts/$GC_KE_ENV/$APP_NAME.yaml --set deploy.tag=v1.0.{{ github.event.inputs.version }} ./helm-charts --wait 
+          echo '${{ steps.secrets.outputs.token }}'
+          helm upgrade -i -n $GC_KE_ENV $GC_REPOSITORY -f ./helm-charts/$GC_KE_ENV/$APP_NAME.yaml --set deploy.tag=$GC_IMAGE_TAG ./helm-charts --wait 
           kubectl rollout status deployment/$APP_NAME-deployment -n $GC_KE_ENV
