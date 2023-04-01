@@ -18,20 +18,14 @@ env:
   GKE_ENVv: production
   
 jobs:
-  Deploy:
+  Build:
     runs-on: ubuntu-latest 
     permissions: 
       contents: read
       packages: write
     steps:
-      - name: Checkout Code
+      - name: Checkout Source Code
         uses: actions/checkout@v2
-        
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          repository: gokhannihal/demo-devops
-          path: './devops'
           
       - name: Login to GCR
         uses: google-github-actions/setup-gcloud@v0.3.0 
@@ -53,19 +47,30 @@ jobs:
         name: Push Docker Image to Container Registry GCR
         run: |-
           docker push $GCR_URL/$GCR_PROJECT_ID/$GCR_IMAGE_NAME:$GCR_IMAGE_TAG 
+  Deploy:
+    runs-on: ubuntu-latest 
+    permissions: 
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout DevOps
+        uses: actions/checkout@v2
+        with:
+          repository: gokhannihal/demo-devops
 
       - name: Install Helm
         run: |
           curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 
       - uses: google-github-actions/get-gke-credentials@fb08709ba27618c31c09e014e1d8364b02e5042e
+        name: Configure Kubernetes Client
         with:
           cluster_name: ${{ env.GKE_CLUSTER }}
           location: ${{ env.GKE_ZONE }}
           credentials: ${{ secrets.GCLOUD_SA_KEY }}  
       
-      - name: Deploy
+      - name: Helm Deploy And Status
         run: |-
           echo $GKE_ENV
-          helm install -n $GKE_ENVv $GCR_IMAGE_NAME -f ./devops/helm-charts/$GKE_ENVv/demo-app.yaml --set deploy.tag=GCR_IMAGE_TAG ./devops/helm-charts --wait 
+          helm install -n $GKE_ENVv $GCR_IMAGE_NAME -f ./helm-charts/$GKE_ENVv/demo-app.yaml --set deploy.tag=$GCR_IMAGE_TAG ./helm-charts --wait 
           kubectl rollout status deployment/livad-admin-api
