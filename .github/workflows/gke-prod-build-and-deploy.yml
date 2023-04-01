@@ -15,7 +15,7 @@ env:
   APP_NAME: livad-admin-api
   
 jobs:
-  Build:
+  BuildAndDeploy:
     runs-on: ubuntu-latest 
     permissions: 
       contents: read
@@ -65,7 +65,7 @@ jobs:
         uses: 'google-github-actions/get-secretmanager-secrets@v1'
         with:
           secrets: |-
-            token:$GC_PROJECT_ID/$livad-admin-api
+            token:${{ env.GC_PROJECT_ID }}/${{ env.APP_NAME }}
 
       - name: Helm Deploy And Status
         working-directory: ./devops
