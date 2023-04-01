@@ -72,5 +72,5 @@ jobs:
       - name: Helm Deploy And Status
         run: |-
           ls -all
-          helm install -n $GKE_ENVv $GCR_IMAGE_NAME -f ./helm-charts/$GKE_ENVv/demo-app.yaml --set deploy.tag=$GCR_IMAGE_TAG ./helm-charts --wait 
+          helm upgrade -i -n $GKE_ENVv $GCR_IMAGE_NAME -f ./helm-charts/$GKE_ENVv/demo-app.yaml --set deploy.tag=$GCR_IMAGE_TAG ./helm-charts --wait 
           kubectl rollout status deployment/livad-admin-api
