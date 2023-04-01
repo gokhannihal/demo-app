@@ -1,4 +1,4 @@
-name: Publish to GCR
+name: Test Build And Deploy GKE
 
 on:
   workflow_dispatch:
