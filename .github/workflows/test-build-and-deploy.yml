@@ -15,7 +15,7 @@ env:
   GC_ZONE: europe-west3
   GC_REGISTRY: eu.gcr.io
   GC_REPOSITORY: livad-admin-api-test
-  GC_IMAGE_TAG: v1.0.{{ github.run_number }}
+  GC_IMAGE_TAG: v1.0.${{ github.run_number }}
   GC_KE_CLUSTER: livad-de-test-kubernetes-cluster
   GC_KE_ENV: test
   APP_NAME: livad-admin-api
@@ -50,6 +50,7 @@ jobs:
 
   Deploy:
     runs-on: ubuntu-latest 
+    needs: Build
     permissions: 
       contents: read
       packages: write
