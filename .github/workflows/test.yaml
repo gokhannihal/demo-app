@@ -1,4 +1,4 @@
-name: Deploy Production 
+name: Deploy Production {{ github.ref }}
 on:
   workflow_dispatch:
 env:
